@@ -1,0 +1,26 @@
+name: KeySkin arm64e prototype
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install dpkg
+      - name: Compile sign package verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash build.sh 2>&1 | tee build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: KeySkin-0.1.0
+          path: |
+            build/*.deb
+            build/SHA256SUMS
+            build/offscreen.ppm
+            build.log
+          if-no-files-found: error

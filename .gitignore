@@ -1,0 +1,5 @@
+build/
+.theos/
+packages/
+evidence/
+__pycache__/
