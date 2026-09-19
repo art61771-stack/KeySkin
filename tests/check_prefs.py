@@ -9,14 +9,14 @@ info = plist('KeySkinPrefs.plist')
 assert info == plist('prefs/Resources/Info.plist')
 assert info['CFBundleExecutable'] == 'KeySkinPrefs'
 assert info['NSPrincipalClass'] == 'KSRootListController'
-assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.2'
+assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.3'
 entry = plist('layout/Library/PreferenceLoader/Preferences/KeySkin.plist')['entry']
 assert entry['bundle'] == info['CFBundleExecutable']
 assert entry['detail'] == info['NSPrincipalClass']
 assert entry['cell'] == 'PSLinkCell' and entry['isController'] is True
 items = plist('Root.plist')['items']
 switches = [x for x in items if x['cell'] == 'PSSwitchCell']
-assert {x['key'] for x in switches} == {'Enabled', 'ProbeEnabled'}
+assert {x['key'] for x in switches} == {'Enabled'}
 for item in switches:
     assert item['default'] is False
     assert item['defaults'] == 'com.zuotian.keyskin'
@@ -45,7 +45,7 @@ make = (root / 'Makefile').read_text()
 for line in ['BUNDLE_NAME = KeySkinPrefs', 'KeySkinPrefs_RESOURCE_FILES = Root.plist',
              'KeySkinPrefs_RESOURCE_DIRS = prefs/Resources', 'KeySkinPrefs_PRIVATE_FRAMEWORKS = Preferences']:
     assert line in make
-assert 'Version: 0.1.2\n' in (root / 'control').read_text()
+assert 'Version: 0.1.3\n' in (root / 'control').read_text()
 assert 'preferenceloader' in (root / 'control').read_text()
 config = plist('config.example.plist')
 assert config['Enabled'] is config['ProbeEnabled'] is False
@@ -58,4 +58,10 @@ for guard in ['if (!allowed) return;', 'KSApprovedClass', 'KSValidatedVoidMethod
     assert guard in tweak, guard
 for forbidden in ['keyWindow', 'NSURLSession', 'addTarget:', 'sendActionsForControlEvents:', 'textInput']:
     assert forbidden not in tweak
-print('PASS: 0.1.2 bundle/resources/defaults/actions/storage; per-key hook source guards (not device validation)')
+print('PASS: 0.1.3 bundle/resources/defaults/actions/storage; per-key hook source guards (not device validation)')
+
+assert "0.1.1" not in (root / "Root.plist").read_text()
+assert "setButtonAction:NSSelectorFromString(action)" in source
+assert "[super setSpecifiers:specifiers]" in source
+assert "[super loadSpecifiers" not in source
+assert "bundleForClass:KSRootListController.class" in source

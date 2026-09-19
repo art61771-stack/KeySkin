@@ -5,7 +5,7 @@ def archive(flag):
 c=archive('--ctrl-tarfile'); names=[m.name.removeprefix('./') for m in c if m.isfile()]
 assert names==['control'],names
 control=c.extractfile(next(m for m in c if m.isfile())).read().decode()
-for text in ['Package: com.zuotian.keyskin','Version: 0.1.2','Architecture: iphoneos-arm64e']: assert text in control
+for text in ['Package: com.zuotian.keyskin','Version: 0.1.3','Architecture: iphoneos-arm64e']: assert text in control
 print(control)
 d=archive('--fsys-tarfile'); files={m.name.removeprefix('./'):m for m in d if m.isfile()}
 bundle='Library/PreferenceBundles/KeySkinPrefs.bundle/'
@@ -13,7 +13,7 @@ entry='Library/PreferenceLoader/Preferences/KeySkin.plist'
 assert set(files)=={'Library/MobileSubstrate/DynamicLibraries/KeySkin.dylib','Library/MobileSubstrate/DynamicLibraries/KeySkin.plist',bundle+'KeySkinPrefs',bundle+'Info.plist',bundle+'Root.plist',entry},files
 info=plistlib.loads(d.extractfile(files[bundle+'Info.plist']).read())
 assert info['CFBundleExecutable']=='KeySkinPrefs' and info['NSPrincipalClass']=='KSRootListController'
-assert info['CFBundleVersion']=='0.1.2'
+assert info['CFBundleVersion']=='0.1.3'
 assert plistlib.loads(d.extractfile(files[entry]).read())['entry']['detail']==info['NSPrincipalClass']
 items=plistlib.loads(d.extractfile(files[bundle+'Root.plist']).read())['items']
 assert len([x for x in items if x['cell']=='PSButtonCell'])==4

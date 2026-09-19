@@ -1,14 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>title</key><string>KeySkin</string>
-<key>items</key><array>
-<dict><key>cell</key><string>PSGroupCell</string><key>label</key><string>KeySkin 0.1.1</string><key>footerText</key><string>当前仅提供设置、合成示例缓存及可选元数据探针。键盘换肤尚未实现，始终保留原生键帽背景。</string></dict>
-<dict><key>cell</key><string>PSSwitchCell</string><key>label</key><string>启用探针总开关</string><key>key</key><string>Enabled</string><key>defaults</key><string>com.zuotian.keyskin</string><key>default</key><false/><key>get</key><string>readPreferenceValue:</string><key>set</key><string>setPreferenceValue:specifier:</string></dict>
-<dict><key>cell</key><string>PSSwitchCell</string><key>label</key><string>允许元数据探针（实验）</string><key>key</key><string>ProbeEnabled</string><key>defaults</key><string>com.zuotian.keyskin</string><key>default</key><false/><key>get</key><string>readPreferenceValue:</string><key>set</key><string>setPreferenceValue:specifier:</string></dict>
-<dict><key>cell</key><string>PSGroupCell</string><key>footerText</key><string>两个开关默认关闭；同时开启后须手动重启目标键盘宿主。关闭也须重启宿主，不会动态卸钩。探针不读取输入内容，不能证明渲染兼容性。</string></dict>
-<dict><key>cell</key><string>PSButtonCell</string><key>label</key><string>生成并保存合成示例</string><key>action</key><string>installBuiltin:</string></dict>
-<dict><key>cell</key><string>PSButtonCell</string><key>label</key><string>预览已保存的示例</string><key>action</key><string>previewBuiltin:</string></dict>
-<dict><key>cell</key><string>PSButtonCell</string><key>label</key><string>兼容性检查并导出报告</string><key>action</key><string>exportCompatibility:</string></dict>
-<dict><key>cell</key><string>PSButtonCell</string><key>label</key><string>清除示例并关闭探针</string><key>action</key><string>clearSkin:</string></dict>
-<dict><key>cell</key><string>PSGroupCell</string><key>footerText</key><string>示例为本地生成的普通键与功能键 PNG，仅用于设置页预览，不会应用到键盘。不读取或上传用户图片；无选图、GIF、动画或网络功能。</string></dict>
-</array></dict></plist>
+<plist version="1.0">
+<dict>
+	<key>title</key>
+	<string>KeySkin</string>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>KeySkin 0.1.3</string>
+			<key>footerText</key>
+			<string>设置加载修复版；图片背景实验仍未真机验收。Enabled 仅在宿主启动时读取，修改配置后需重启宿主。</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>启用逐键图片实验</string>
+			<key>key</key>
+			<string>Enabled</string>
+			<key>defaults</key>
+			<string>com.zuotian.keyskin</string>
+			<key>default</key>
+			<false/>
+			<key>get</key>
+			<string>readPreferenceValue:</string>
+			<key>set</key>
+			<string>setPreferenceValue:specifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>默认关闭。先生成示例，再开启 Enabled 并手动重启键盘宿主。旧 ProbeEnabled 不再被运行代码读取，无需同时开启。无自定义选图。</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>生成并保存合成示例</string>
+			<key>action</key>
+			<string>installBuiltin:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>预览已保存的示例</string>
+			<key>action</key>
+			<string>previewBuiltin:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>兼容性检查并导出报告</string>
+			<key>action</key>
+			<string>exportCompatibility:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>清除示例并关闭图片实验</string>
+			<key>action</key>
+			<string>clearSkin:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>本地生成普通键与功能键 PNG，可预览；开启实验并重启宿主后尝试应用。没有自定义选图、GIF、动画或网络功能；实际键盘效果和兼容性待真机验证。</string>
+		</dict>
+	</array>
+</dict>
+</plist>

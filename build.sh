@@ -21,5 +21,5 @@ codesign --verify --strict --verbose=4 build/KeySkinPrefs
 xcrun lipo -info build/KeySkinPrefs
 xcrun otool -hvL build/KeySkinPrefs
 python3 package.py
-python3 verify.py build/KeySkin-0.1.2-roothide.deb
+python3 verify.py build/KeySkin-0.1.3-roothide.deb
 shasum -a 256 build/*.deb > build/SHA256SUMS

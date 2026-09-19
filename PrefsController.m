@@ -9,7 +9,7 @@
 static CFStringRef const KSDomain = CFSTR("com.zuotian.keyskin");
 static NSUInteger const KSMaxPNGBytes = 512 * 1024;
 static BOOL KSBooleanKey(NSString *key) {
-    return [key isEqualToString:@"Enabled"] || [key isEqualToString:@"ProbeEnabled"];
+    return [key isEqualToString:@"Enabled"];
 }
 static id KSRead(NSString *key) {
     CFPreferencesAppSynchronize(KSDomain);
@@ -46,13 +46,79 @@ static UIImage *KSSavedImage(NSString *key) {
     return valid ? [UIImage imageWithData:value scale:2] : nil;
 }
 @interface KSRootListController : PSListController
-@property(nonatomic, strong) NSArray *ksSpecifiers;
+@property(nonatomic, strong) NSMutableArray *ksSpecifiers;
 @end
 @implementation KSRootListController
-- (NSArray *)specifiers {
-    if (!self.ksSpecifiers) self.ksSpecifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
-    return self.ksSpecifiers;
+// Resolve relative to the actual loaded bundle, including RootHide relocation.
+- (NSBundle *)ksResourceBundle {
+    return [NSBundle bundleForClass:KSRootListController.class];
 }
+- (NSMutableArray *)ksError:(NSString *)message {
+    PSSpecifier *group = [PSSpecifier groupSpecifierWithName:@"KeySkin 设置加载失败"];
+    [group setProperty:message forKey:@"footerText"];
+    return [NSMutableArray arrayWithObject:group];
+}
+// Deliberately do not call a superclass plist loader: some implementations
+// forward between these overloads or use the entry label rather than Root.
+- (NSMutableArray *)loadSpecifiersFromPlistName:(NSString *)name target:(PSListController *)target {
+    return [self loadSpecifiersFromPlistName:name target:target bundle:[self ksResourceBundle]];
+}
+- (NSMutableArray *)loadSpecifiersFromPlistName:(NSString *)name target:(PSListController *)target bundle:(NSBundle *)bundle {
+    (void)name; (void)target; (void)bundle;
+    NSBundle *ownBundle = [self ksResourceBundle];
+    NSString *path = [ownBundle pathForResource:@"Root" ofType:@"plist"];
+    NSDictionary *root = path ? [NSDictionary dictionaryWithContentsOfFile:path] : nil;
+    id items = [root isKindOfClass:NSDictionary.class] ? root[@"items"] : nil;
+    if (![items isKindOfClass:NSArray.class] || ![items count])
+        return [self ksError:@"无法读取 KeySkinPrefs.bundle/Root.plist 或列表为空。请重新安装完整 0.1.3 包；无需开启实验开关。"];
+    NSMutableArray *result = [NSMutableArray array];
+    for (id item in items) {
+        if (![item isKindOfClass:NSDictionary.class]) return [self ksError:@"Root.plist 项目格式错误。"];
+        NSString *cell = item[@"cell"];
+        PSCellType type;
+        if ([cell isEqual:@"PSGroupCell"]) type = PSGroupCell;
+        else if ([cell isEqual:@"PSSwitchCell"] && [item[@"key"] isEqual:@"Enabled"]) type = PSSwitchCell;
+        else if ([cell isEqual:@"PSButtonCell"]) type = PSButtonCell;
+        else return [self ksError:@"Root.plist 包含不支持的设置项目。"];
+        NSString *label = item[@"label"];
+        if (label && ![label isKindOfClass:NSString.class]) return [self ksError:@"Root.plist 标题无效。"];
+        PSSpecifier *spec = [PSSpecifier preferenceSpecifierNamed:label ?: @"" target:self
+            set:type == PSSwitchCell ? @selector(setPreferenceValue:specifier:) : NULL
+            get:type == PSSwitchCell ? @selector(readPreferenceValue:) : NULL
+            detail:Nil cell:type edit:Nil];
+        if (!spec) return [self ksError:@"Preferences 无法创建设置项目。"];
+        for (NSString *key in item) [spec setProperty:item[key] forKey:key];
+        spec.target = self;
+        if (type == PSButtonCell) {
+            NSString *action = item[@"action"];
+            NSArray *allowed = @[@"installBuiltin:", @"previewBuiltin:", @"exportCompatibility:", @"clearSkin:",
+                                 @"installBuiltin", @"previewBuiltin", @"exportCompatibility", @"clearSkin"];
+            if (![action isKindOfClass:NSString.class] || ![allowed containsObject:action] ||
+                ![self respondsToSelector:NSSelectorFromString(action)]) return [self ksError:@"Root.plist 按钮方法无效。"];
+            [spec setButtonAction:NSSelectorFromString(action)];
+        }
+        [result addObject:spec];
+    }
+    return result;
+}
+- (NSMutableArray *)specifiers {
+    if (!_ksSpecifiers) [self setSpecifiers:[self loadSpecifiersFromPlistName:@"Root" target:self]];
+    return _ksSpecifiers;
+}
+- (void)setSpecifiers:(NSMutableArray *)specifiers {
+    _ksSpecifiers = specifiers;
+    [super setSpecifiers:specifiers];
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"KeySkin 0.1.3";
+    // Explicit publication also supports loaders that never call our getter.
+    [self setSpecifiers:[self loadSpecifiersFromPlistName:@"KeySkin" target:self]];
+}
+- (void)installBuiltin { [self installBuiltin:nil]; }
+- (void)previewBuiltin { [self previewBuiltin:nil]; }
+- (void)exportCompatibility { [self exportCompatibility:nil]; }
+- (void)clearSkin { [self clearSkin:nil]; }
 - (void)showMessage:(NSString *)message {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"KeySkin" message:message preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"好" style:UIAlertActionStyleDefault handler:nil]];
@@ -133,10 +199,10 @@ static UIImage *KSSavedImage(NSString *key) {
     }
     UIImage *sample = KSSavedImage(@"NormalImageData");
     CGImageRef result = sample ? KSCreateKeyImage(sample.CGImage, CGSizeMake(44,54),7,2) : NULL;
-    NSDictionary *report = @{@"version": @"0.1.2", @"os": UIDevice.currentDevice.systemVersion,
+    NSDictionary *report = @{@"version": @"0.1.3", @"os": UIDevice.currentDevice.systemVersion,
         @"scope": @"Settings process only; not keyboard host validation",
-        @"renderingEnabled": @NO, @"targetABIProven": @NO,
-        @"reason": @"iOS 16.6 contour/state/cache/ownership contract unverified; native fallback",
+        @"configuredEnabled": KSRead(@"Enabled") ?: @NO, @"targetABIProven": @NO,
+        @"reason": @"Experimental UIKBKeyView images; Settings cannot verify host hooks or appearance",
         @"syntheticOffscreenImageCreated": @(result != NULL), @"classes": classes};
     if (result) CGImageRelease(result);
     NSData *data = [NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
@@ -155,6 +221,6 @@ static UIImage *KSSavedImage(NSString *key) {
     KSWrite(@"ProbeEnabled", @NO);
     BOOL saved = CFPreferencesAppSynchronize(KSDomain);
     [self reloadSpecifiers];
-    [self showMessage:saved ? @"已清除示例并关闭两个探针开关。已运行的宿主仍需手动重启才会移除探针；键盘背景从未被替换。" : @"清除或保存失败，未确认配置已持久化。请检查权限后重试。"];
+    [self showMessage:saved ? @"已清除示例并关闭图片实验开关（同时重置旧 ProbeEnabled）。请手动重启目标宿主，已运行进程不会动态卸钩。" : @"清除或保存失败，未确认配置已持久化。请检查权限后重试。"];
 }
 @end
