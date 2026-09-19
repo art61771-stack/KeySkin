@@ -6,9 +6,35 @@ permissions:
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - run: brew install dpkg
+      - name: Production preferences UIKit simulator test
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          xcrun simctl list -j > build/simulators.json
+          python3 - <<'PY' > build/simulator-selection.txt
+          import json
+          data = json.load(open('build/simulators.json'))
+          runtimes = [r for r in data['runtimes'] if r.get('isAvailable') and '.iOS-' in r['identifier']]
+          runtime = sorted(runtimes, key=lambda r: tuple(map(int, r['version'].split('.'))))[-1]
+          devices = [d for d in data['devicetypes'] if d.get('productFamily') == 'iPhone' and d['identifier'] in {x['deviceTypeIdentifier'] for x in data['devices'].get(runtime['identifier'], [])}]
+          print(runtime['identifier'])
+          print(devices[0]['identifier'])
+          PY
+          RUNTIME=$(sed -n '1p' build/simulator-selection.txt)
+          TYPE=$(sed -n '2p' build/simulator-selection.txt)
+          KS_SIMULATOR_UDID=$(xcrun simctl create KeySkin-014-CI "$TYPE" "$RUNTIME")
+          export KS_SIMULATOR_UDID
+          cleanup() { xcrun simctl shutdown "$KS_SIMULATOR_UDID" || true; xcrun simctl delete "$KS_SIMULATOR_UDID" || true; }
+          trap cleanup EXIT
+          xcrun simctl boot "$KS_SIMULATOR_UDID"
+          xcrun simctl bootstatus "$KS_SIMULATOR_UDID" -b
+          bash tests/run_prefs_uikit.sh 2>&1 | tee build/prefs-uikit.log
       - name: Compile sign package verify
         shell: bash
         run: |
@@ -17,10 +43,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: KeySkin-0.1.3
+          name: KeySkin-0.1.4
           path: |
             build/*.deb
             build/SHA256SUMS
             build/offscreen.ppm
+            build/prefs-uikit.log
+            build/simulator-selection.txt
             build.log
           if-no-files-found: error

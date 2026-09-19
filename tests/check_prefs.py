@@ -9,7 +9,7 @@ info = plist('KeySkinPrefs.plist')
 assert info == plist('prefs/Resources/Info.plist')
 assert info['CFBundleExecutable'] == 'KeySkinPrefs'
 assert info['NSPrincipalClass'] == 'KSRootListController'
-assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.3'
+assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.4'
 entry = plist('layout/Library/PreferenceLoader/Preferences/KeySkin.plist')['entry']
 assert entry['bundle'] == info['CFBundleExecutable']
 assert entry['detail'] == info['NSPrincipalClass']
@@ -28,9 +28,44 @@ assert 'KSCreateKeyImage' in source and 'targetABIProven' in source
 assert 'UIActivityViewController' in source
 for item in buttons:
     assert re.search(r'- \(void\)' + re.escape(item['action']), source), item
-assert ': PSListController' in source
+assert ': UITableViewController' in source
+for forbidden in ['Preferences/', 'PSListController', 'PSSpecifier', 'ksSpecifiers',
+                  'loadSpecifiers', 'setSpecifiers', 'reloadSpecifiers',
+                  'readPreferenceValue:', 'setPreferenceValue:', 'pathForResource:']:
+    assert forbidden not in source, forbidden
+for initializer in ['init', 'initWithStyle:', 'initWithNibName:']:
+    assert '- (instancetype)' + initializer in source
+# Verify exact production enum order, cell labels, and didSelect routing.
+rows = ['Enabled', 'Install', 'Preview', 'Export', 'Clear']
+enum = re.search(r'typedef NS_ENUM\(NSInteger, KSSettingsRow\) \{(.*?)\};', source, re.S).group(1)
+assert re.findall(r'KSSettingsRow(\w+)', enum) == rows + ['Count']
+assert 'KSSettingsRowEnabled = 0' in enum
+assert 'return section == 0 ? KSSettingsRowCount : 0;' in source
+assert re.search(r'numberOfSectionsInTableView:.*?return 1;', source, re.S)
+cells = source.split('cellForRowAtIndexPath:')[1].split('titleForFooterInSection:')[0]
+selection = source.split('didSelectRowAtIndexPath:')[1].split('- (void)showMessage:')[0]
+labels = ['Enabled（实验性图片换肤）', '生成示例', '预览', '导出兼容报告', '清除']
+for row, label in zip(rows, labels):
+    assert re.search(r'case KSSettingsRow' + row + r':.*?cell.textLabel.text = @"' + re.escape(label) + '";', cells, re.S)
+actions = dict(zip(rows[1:], ['installBuiltin', 'previewBuiltin', 'exportCompatibility', 'clearSkin']))
+assert re.findall(r'case KSSettingsRow(\w+):', selection) == rows[1:]
+for row, action in actions.items():
+    assert f'case KSSettingsRow{row}: [self {action}:nil]; break;' in selection
+assert 'deselectRowAtIndexPath:indexPath' in selection
+assert 'if (indexPath.section != 0) return;' in selection
+assert 'toggle.on = [self enabledValue];' in cells
+assert '[toggle addTarget:self action:@selector(enabledChanged:) forControlEvents:UIControlEventValueChanged];' in cells
+assert 'cell.accessoryView = nil;' in cells  # reused buttons cannot retain a switch
 assert 'CFPreferencesSetAppValue' in source and 'CFPreferencesCopyAppValue' in source
-assert 'KSBooleanKey(key)' in source and 'CFBooleanGetTypeID' in source
+assert 'CFBooleanGetTypeID() ? [value boolValue] : NO' in source
+toggle = source.split('- (void)enabledChanged:')[1].split('- (void)installBuiltin:')[0]
+for statement in ['isKindOfClass:UISwitch.class', 'KSWrite(@"Enabled", @(requested));',
+                  'CFPreferencesAppSynchronize(KSDomain)', '[self enabledValue] == requested',
+                  '[self.tableView reloadData];', 'if (!saved)']:
+    assert statement in toggle
+assert re.findall(r'KSWrite\(@"([^"]+)"', toggle) == ['Enabled']
+initializers = source.split('@implementation KSRootListController')[1].split('- (BOOL)enabledValue')[0]
+assert 'KSWrite(' not in initializers  # opening/reopening never resets stored data
 assert '512 * 1024' in source and 'CGImageSourceGetCount(source) == 1' in source
 clear = source.split('- (void)clearSkin:')[1]
 for key in ['NormalImageData', 'FunctionImageData']:
@@ -45,7 +80,7 @@ make = (root / 'Makefile').read_text()
 for line in ['BUNDLE_NAME = KeySkinPrefs', 'KeySkinPrefs_RESOURCE_FILES = Root.plist',
              'KeySkinPrefs_RESOURCE_DIRS = prefs/Resources', 'KeySkinPrefs_PRIVATE_FRAMEWORKS = Preferences']:
     assert line in make
-assert 'Version: 0.1.3\n' in (root / 'control').read_text()
+assert 'Version: 0.1.4\n' in (root / 'control').read_text()
 assert 'preferenceloader' in (root / 'control').read_text()
 config = plist('config.example.plist')
 assert config['Enabled'] is config['ProbeEnabled'] is False
@@ -58,10 +93,6 @@ for guard in ['if (!allowed) return;', 'KSApprovedClass', 'KSValidatedVoidMethod
     assert guard in tweak, guard
 for forbidden in ['keyWindow', 'NSURLSession', 'addTarget:', 'sendActionsForControlEvents:', 'textInput']:
     assert forbidden not in tweak
-print('PASS: 0.1.3 bundle/resources/defaults/actions/storage; per-key hook source guards (not device validation)')
-
+assert '[self.tableView reloadData];' in clear
 assert "0.1.1" not in (root / "Root.plist").read_text()
-assert "setButtonAction:NSSelectorFromString(action)" in source
-assert "[super setSpecifiers:specifiers]" in source
-assert "[super loadSpecifiers" not in source
-assert "bundleForClass:KSRootListController.class" in source
+print('PASS: fixed UIKit five-row mapping/actions, strict Enabled default/storage, retained 0.1.4 resources and hook guards (static only; not device validation)')
