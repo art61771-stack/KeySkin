@@ -6,7 +6,7 @@ TWEAK_NAME = KeySkin
 KeySkin_FILES = Tweak.xm
 KeySkin_CFLAGS = -fobjc-arc
 KeySkin_CCFLAGS = -std=c++17
-KeySkin_FRAMEWORKS = UIKit Foundation CoreFoundation
+KeySkin_FRAMEWORKS = UIKit Foundation CoreFoundation ImageIO QuartzCore
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 BUNDLE_NAME = KeySkinPrefs

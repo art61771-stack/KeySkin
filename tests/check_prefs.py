@@ -9,7 +9,7 @@ info = plist('KeySkinPrefs.plist')
 assert info == plist('prefs/Resources/Info.plist')
 assert info['CFBundleExecutable'] == 'KeySkinPrefs'
 assert info['NSPrincipalClass'] == 'KSRootListController'
-assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.1'
+assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.2'
 entry = plist('layout/Library/PreferenceLoader/Preferences/KeySkin.plist')['entry']
 assert entry['bundle'] == info['CFBundleExecutable']
 assert entry['detail'] == info['NSPrincipalClass']
@@ -45,10 +45,17 @@ make = (root / 'Makefile').read_text()
 for line in ['BUNDLE_NAME = KeySkinPrefs', 'KeySkinPrefs_RESOURCE_FILES = Root.plist',
              'KeySkinPrefs_RESOURCE_DIRS = prefs/Resources', 'KeySkinPrefs_PRIVATE_FRAMEWORKS = Preferences']:
     assert line in make
-assert 'Version: 0.1.1\n' in (root / 'control').read_text()
+assert 'Version: 0.1.2\n' in (root / 'control').read_text()
 assert 'preferenceloader' in (root / 'control').read_text()
 config = plist('config.example.plist')
 assert config['Enabled'] is config['ProbeEnabled'] is False
-# Preserve the original default-disabled, no-render-hook probe byte for byte.
-assert (root / 'Tweak.xm').read_bytes() == subprocess.check_output(['git', 'show', 'HEAD:Tweak.xm'], cwd=root)
-print('PASS: bundle identity/resources, entry, defaults, action binding, storage guards, clear semantics, unchanged probe')
+# Source checks only: actual runtime guards are exercised by runtime.mm on macOS.
+tweak = (root / 'Tweak.xm').read_text()
+for guard in ['if (!allowed) return;', 'KSApprovedClass', 'KSValidatedVoidMethod',
+              'object_getClass(view) != KSKeyClass', 'KSRemoveBackground(view)',
+              'background.userInteractionEnabled = NO', 'background.accessibilityElementsHidden = YES',
+              'insertSubview:background atIndex:0', 'CFBooleanGetTypeID', 'MSHookMessageEx']:
+    assert guard in tweak, guard
+for forbidden in ['keyWindow', 'NSURLSession', 'addTarget:', 'sendActionsForControlEvents:', 'textInput']:
+    assert forbidden not in tweak
+print('PASS: 0.1.2 bundle/resources/defaults/actions/storage; per-key hook source guards (not device validation)')

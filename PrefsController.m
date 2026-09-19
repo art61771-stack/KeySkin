@@ -84,7 +84,7 @@ static UIImage *KSSavedImage(NSString *key) {
     KSWrite(@"FunctionImageData", function);
     BOOL saved = CFPreferencesAppSynchronize(KSDomain);
     saved = saved && [KSRead(@"NormalImageData") isEqual:normal] && [KSRead(@"FunctionImageData") isEqual:function];
-    [self showMessage:saved ? @"两张本地合成 PNG 已保存，可点击预览。未启用探针，也不会应用到键盘。" : @"示例保存或回读校验失败；请清除后重试。"];
+    [self showMessage:saved ? @"两张本地合成 PNG 已保存，可点击预览。未自动开启换肤；开启实验开关并重启宿主后才尝试逐键显示。" : @"示例保存或回读校验失败；请清除后重试。"];
 }
 - (void)previewBuiltin:(PSSpecifier *)specifier {
     (void)specifier;
@@ -133,7 +133,7 @@ static UIImage *KSSavedImage(NSString *key) {
     }
     UIImage *sample = KSSavedImage(@"NormalImageData");
     CGImageRef result = sample ? KSCreateKeyImage(sample.CGImage, CGSizeMake(44,54),7,2) : NULL;
-    NSDictionary *report = @{@"version": @"0.1.1", @"os": UIDevice.currentDevice.systemVersion,
+    NSDictionary *report = @{@"version": @"0.1.2", @"os": UIDevice.currentDevice.systemVersion,
         @"scope": @"Settings process only; not keyboard host validation",
         @"renderingEnabled": @NO, @"targetABIProven": @NO,
         @"reason": @"iOS 16.6 contour/state/cache/ownership contract unverified; native fallback",
