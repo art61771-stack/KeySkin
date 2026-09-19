@@ -109,5 +109,11 @@ assert entry_source.index('addChildViewController:') < entry_source.index('addSu
 assert 'PSViewController : UIViewController' in (root/'compat/Preferences/PSViewController.h').read_text()
 assert 'PSListController : PSViewController' in (root/'compat/Preferences/PSListController.h').read_text()
 assert 'PSViewController' in (root/'compat/Preferences.framework/Preferences.tbd').read_text()
-assert not subprocess.check_output(['git','diff','905808b','--','Tweak.xm','KSRuntime.h'])
+# Baseline 905808b content hashes also work in shallow CI/source archives.
+import hashlib
+for filename, expected in {
+    'Tweak.xm': '27f4b3d456e67d1f829013932b9aca9fd75a6a3cf97a340e9dcb9b71a966b8d6',
+    'KSRuntime.h': 'd098f3f43cb86161c48bdcd8ab8acb3c0986f345a36b2f9ca17e705a887387a6'
+}.items():
+    assert hashlib.sha256((root/filename).read_bytes()).hexdigest() == expected
 print('PASS: PS entry inheritance/containment, independent five-row content, no specifier cache, unchanged production runtime (static only)')
