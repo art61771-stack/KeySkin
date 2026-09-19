@@ -43,6 +43,8 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
 }
 @interface KSTestApp : UIResponder <UIApplicationDelegate>
 @property(nonatomic, strong) UIWindow *window;
+@property(nonatomic, strong) KSTestController *controller;
+@property(nonatomic, strong) UINavigationController *nav;
 @end
 @implementation KSTestApp
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)options {
@@ -52,7 +54,16 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:controller];
     self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
-    dispatch_async(dispatch_get_main_queue(), ^{
+    self.controller = controller;
+    self.nav = nav;
+    // Do not block the main dispatch queue with a nested run loop: UIKit's
+    // transition completion blocks must be able to drain on that queue.
+    [self performSelector:@selector(runTests) withObject:nil afterDelay:1.0];
+    return YES;
+}
+- (void)runTests {
+    KSTestController *controller = self.controller;
+    UINavigationController *nav = self.nav;
         // Only the disposable simulator app's preference domain is touched.
         NSArray *keys = @[@"Enabled", @"NormalImageData", @"FunctionImageData", @"ProbeEnabled"];
         NSMutableDictionary *backup = [NSMutableDictionary dictionary];
@@ -79,7 +90,11 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
             for (NSInteger cycle = 0; cycle < 3; cycle++) {
                 Select(controller, 2);
                 Require(nav.topViewController != controller, @"preview pushed");
+                NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10];
+                while (nav.transitionCoordinator && deadline.timeIntervalSinceNow > 0) Pump();
+                Require(nav.transitionCoordinator == nil, @"preview transition completed");
                 [nav popViewControllerAnimated:NO]; Pump(); Five(controller);
+                Require(nav.topViewController == controller && controller.view.window != nil, @"preview popped to visible settings");
                 Select(controller, 3);
                 Require([controller.presentedViewController isKindOfClass:UIActivityViewController.class], @"real share presented");
                 [controller dismissViewControllerAnimated:NO completion:nil]; Pump();
@@ -100,8 +115,6 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
         [result writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
         NSLog(@"%@", result);
         exit(passed ? 0 : 1);
-    });
-    return YES;
 }
 @end
 int main(int argc, char **argv) {
