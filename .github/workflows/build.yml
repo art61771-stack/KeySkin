@@ -17,7 +17,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: KeySkin-0.1.0
+          name: KeySkin-0.1.1
           path: |
             build/*.deb
             build/SHA256SUMS

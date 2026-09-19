@@ -39,7 +39,19 @@ if mode=='start':
  print('Created, pushed, dispatched:',repo)
 else:
  repo=json.loads(meta.read_text())['repo']
- if mode=='status':
+ if mode=='resume':
+  ask=ROOT/'evidence/askpass.sh'; ask.write_text('#!/bin/sh\ncase "$1" in *Username*) echo x-access-token;; *) printf "%s\\n" "$GITHUB_TOKEN";; esac\n'); ask.chmod(0o700)
+  env=dict(os.environ,GIT_ASKPASS=str(ask),GIT_TERMINAL_PROMPT='0')
+  try:
+   api('/repos/'+repo,'PATCH',{'private':False})
+   subprocess.run(['git','remote','add','origin','https://github.com/'+repo+'.git'],check=True)
+   subprocess.run(['git','push','-u','origin','main'],env=env,check=True)
+   api('/repos/'+repo+'/actions/workflows/build.yml/dispatches','POST',{'ref':'main'})
+  except Exception:
+   api('/repos/'+repo,'PATCH',{'private':True}); raise
+  finally: ask.unlink(missing_ok=True)
+  print('Push and CI dispatch complete')
+ elif mode=='status':
   runs=api('/repos/'+repo+'/actions/runs')['workflow_runs']
   r=runs[0] if runs else {}
   (ROOT/'evidence/run.json').write_text(json.dumps(r,indent=2))

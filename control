@@ -1,9 +1,9 @@
 Package: com.zuotian.keyskin
 Name: KeySkin
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm64e
 Description: Opt-in keyboard metadata probe; background rendering disabled.
 Maintainer: zuotian
 Author: zuotian
 Section: Tweaks
-Depends: firmware (>= 16.0), mobilesubstrate
+Depends: firmware (>= 16.0), mobilesubstrate, preferenceloader

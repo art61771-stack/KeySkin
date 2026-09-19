@@ -1,4 +1,4 @@
-#import <UIKit/UIKit.h>
+#import <CoreGraphics/CoreGraphics.h>
 #include "KSGeometry.h"
 // Offline/experimental helper ONLY. Not wired to any private renderer.
 // Caller owns the returned CGImage; input is one key's image, never a keyboard capture.
