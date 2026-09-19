@@ -1,22 +1,18 @@
-# KeySkin 0.1.4 — 设置页稳定性修复
+# KeySkin 0.1.5 — Preferences 入口兼容修复候选
 
-**本包仅修复设置页稳定性，不代表键盘换肤已修好。宿主诊断尚未实现。**
-目标设备仍为 iPhone 14 Pro Max / iOS 16.6 / RootHide；未进行真机 PreferenceLoader 或键盘效果验收。
+目标：iPhone 14 Pro Max / iOS 16.6 / RootHide。**未完成真机 PreferenceLoader 验收，不声称闪退已修好；键盘未生效仍未解决。**
 
-## 本版变更
-生产 KSRootListController 改为 UITableViewController，固定五行：Enabled（实验性图片换肤）、生成示例、预览、导出兼容报告、清除。不再依赖 PSListController/specifier 发布或重载生命周期。各初始化入口均可创建列表，返回页面及清除后重载；复用单元格先清理 accessoryView。
-Root.plist 仅保留为历史资源，不参与当前设置页数据源。旧 Enabled 和图片配置保留；默认关闭，错误类型按关闭处理。生成两张 192×192 合成 PNG 不自动开启换肤，预览使用生产逐键离屏裁剪函数。清除图片并关闭 Enabled / 旧 ProbeEnabled。
+入口 `KSRootListController` 恢复真实 `PSViewController` 基类（Theos headers：`PSListController → PSViewController → UIViewController`），继承 Preferences 的初始化及 specifier/parent/root 契约，不补空 setter、不吞 unknown selector。内部使用标准 child containment 和 safe-area 布局承载独立 `KSSettingsTableController : UITableViewController` 的五行内容。避免 PSListController 私有表管理与子表数据源冲突，无 specifier 双缓存。Info 的 NSPrincipalClass 与 PreferenceLoader detail 保持匹配。预览通过外部导航栈 push/pop，分享/提示由可见子控制器呈现。
 
-Tweak.xm、KSRuntime.h 及键盘渲染未修改。既有 UIKBKeyView 背景实验仍需真实宿主注入和运行验证；不保证覆盖键帽、不遮字或适配所有键盘。Settings 导出报告仅反映当前设置进程，不能定位键盘宿主、确认宿主注入或解释键盘无效原因；宿主诊断尚未实现。
+打开设置不改已有 Enabled 或图片，缺省 Enabled=false。生成不自动启用；只有主动清除会删除图片并关闭 Enabled/旧 ProbeEnabled。Root.plist 是保留资源，不驱动表格。Tweak.xm 和 KSRuntime.h 与 905808b 完全相同；未新增宿主诊断、全局 UIKit/Preferences hook 或换肤修复。
 
-## 测试与构建
-公开 GitHub Actions macos-14 CI 从 simctl list -j 选择可用 iOS runtime/iPhone 类型，新建独立模拟器，boot/bootstatus 后执行 tests/run_prefs_uikit.sh，退出时关闭并删除设备。
-测试直接编译生产 PrefsController.m，使用真实 UIKit 窗口、导航和分享控制器；仅覆盖信息提示以避免阻断测试。覆盖五行数据源及动作、严格布尔值与默认关闭、生成与开关持久化、三种初始化、三轮预览 push/pop 和真实分享 present/dismiss、清除后重载和空预览。不是自动触摸测试，不是 PreferenceLoader 加载测试，也不是键盘宿主测试。是否通过以对应 CI 日志为准。
+## 验证边界
+- `python3 tests/check_prefs.py`：入口继承、containment、独立五行、无 specifier 缓存、资源/版本及运行代码零差异静态检查。
+- `bash build.sh`：几何、macOS CoreGraphics、生产运行时守卫；arm64e dylib/MH_BUNDLE 编译签名及包结构校验。仅 control，无维护/安装/重启脚本。
+- CI 只允许 **iOS16** 可用 runtime，记录实际名称/版本并检查现有 Xcode。没有则明确 `NOT RUN: iOS16 runtime unavailable`，不降级到其他 iOS，不计测试 PASS。
+- 可运行时 UIKit 测试直接编译生产子控制器，用公开 UIKit containment 测五行、toggle、生成、清除、预览返回及分享取消；不是私有 Preferences 或 16.6 PreferenceLoader 实测。入口私有契约仅经真实 Theos header、链接及静态检查。
 
-`python3 tests/check_prefs.py` 是静态检查，不替代上述 UIKit 测试。
-`bash build.sh` 在 macOS/Xcode 执行几何、生产 CoreGraphics 及运行时守卫测试，然后编译并 ad-hoc 签名 arm64e 主 dylib 与设置 MH_BUNDLE、打包并校验 0.1.4 deb。包内六个有效负载文件；control 归档仅有 control，无维护/安装/自动重启脚本。compat/Preferences 只是链接 stub，不随包分发。
-Theos 构建：`make package THEOS=/path/to/roothide-theos FINALPACKAGE=1`，需要支持 roothide scheme 的工具链。RootHide 安装路径处理依赖目标包管理器，未真机认证。
+## 初次检查
+保持 Enabled 关闭，仅进入设置确认五行；生成 → 预览并返回 → 导出并取消 → 清除 → 退出重进。不要为了验收入口开启键盘实验。不会自动安装或重启。
 
-## 使用与回退
-安装后先检查五行可见，反复生成、预览返回、导出取消、清除并退出重进。只在可恢复测试设备开启实验开关，更改配置后手动重启目标宿主；当前运行进程不会动态卸钩。关闭后重启或卸载后重启用于回退。需保留安全模式/包管理器恢复途径。
-无用户选图、GIF、动画、网络或宿主诊断；不采集输入文本，不 hook 输入回调，不访问或上传用户图片。注入过滤仍为 com.apple.UIKit，覆盖范围与远程键盘服务注入未获真机证实。
+设置导出仅反映 Settings 进程，不证明键盘宿主注入或效果。无用户选图、GIF、动画、网络或输入内容采集；RootHide 安装路径与真机导航仍待验证。

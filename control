@@ -1,6 +1,6 @@
 Package: com.zuotian.keyskin
 Name: KeySkin
-Version: 0.1.4
+Version: 0.1.5
 Architecture: iphoneos-arm64e
 Description: Experimental opt-in per-key background images; disabled by default.
 Maintainer: zuotian

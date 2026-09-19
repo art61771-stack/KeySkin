@@ -4,6 +4,16 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 : "${KS_SIMULATOR_UDID:?Set KS_SIMULATOR_UDID to a booted disposable iOS simulator UDID}"
+# Independently reject non-iOS16 devices, even when invoked outside CI.
+xcrun simctl list -j | python3 -c '
+import json, os, sys
+d=json.load(sys.stdin); uid=os.environ["KS_SIMULATOR_UDID"]
+rids=[r for r, devices in d["devices"].items() if any(x["udid"] == uid for x in devices)]
+assert len(rids)==1
+r=next(x for x in d["runtimes"] if x["identifier"]==rids[0])
+assert r.get("isAvailable") and ".iOS-" in r["identifier"] and r["version"].split(".")[0]=="16", "Only iOS16 permitted"
+print("Content UIKit runtime:", r["name"], r["version"])
+'
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 APP="$WORK/KeySkinPrefsTest.app"

@@ -1,6 +1,6 @@
 from pathlib import Path
 import shutil,subprocess
-assert 'Version: 0.1.4\n' in Path('control').read_text()
+assert 'Version: 0.1.5\n' in Path('control').read_text()
 root=Path('build/package')
 if root.exists(): shutil.rmtree(root)
 dest=root/'Library/MobileSubstrate/DynamicLibraries'
@@ -17,4 +17,4 @@ shutil.copyfile('prefs/Resources/Info.plist',bundle/'Info.plist')
 shutil.copytree('layout',root,dirs_exist_ok=True)
 (root/'DEBIAN').mkdir()
 shutil.copyfile('control',root/'DEBIAN/control')
-subprocess.run(['dpkg-deb','--root-owner-group','-Zxz','-b',str(root),'build/KeySkin-0.1.4-roothide.deb'],check=True)
+subprocess.run(['dpkg-deb','--root-owner-group','-Zxz','-b',str(root),'build/KeySkin-0.1.5-roothide.deb'],check=True)

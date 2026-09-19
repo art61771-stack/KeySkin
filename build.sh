@@ -5,6 +5,7 @@ mkdir -p build
 clang++ -std=c++17 -Wall -Wextra -Werror tests/geometry.cpp -o build/geometry
 build/geometry build/offscreen.ppm
 python3 tests/check_prefs.py
+python3 tests/check_ios16.py
 xcrun clang++ -std=c++17 -Wall -Wextra -Werror tests/coregraphics.cpp -framework CoreGraphics -framework CoreFoundation -o build/coregraphics
 build/coregraphics
 xcrun clang++ -std=c++17 -Wall -Wextra -Werror -fobjc-arc tests/runtime.mm -framework Foundation -o build/runtime
@@ -21,5 +22,5 @@ codesign --verify --strict --verbose=4 build/KeySkinPrefs
 xcrun lipo -info build/KeySkinPrefs
 xcrun otool -hvL build/KeySkinPrefs
 python3 package.py
-python3 verify.py build/KeySkin-0.1.4-roothide.deb
+python3 verify.py build/KeySkin-0.1.5-roothide.deb
 shasum -a 256 build/*.deb > build/SHA256SUMS

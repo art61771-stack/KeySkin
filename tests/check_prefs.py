@@ -9,7 +9,7 @@ info = plist('KeySkinPrefs.plist')
 assert info == plist('prefs/Resources/Info.plist')
 assert info['CFBundleExecutable'] == 'KeySkinPrefs'
 assert info['NSPrincipalClass'] == 'KSRootListController'
-assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.4'
+assert info['CFBundleVersion'] == info['CFBundleShortVersionString'] == '0.1.5'
 entry = plist('layout/Library/PreferenceLoader/Preferences/KeySkin.plist')['entry']
 assert entry['bundle'] == info['CFBundleExecutable']
 assert entry['detail'] == info['NSPrincipalClass']
@@ -29,7 +29,7 @@ assert 'UIActivityViewController' in source
 for item in buttons:
     assert re.search(r'- \(void\)' + re.escape(item['action']), source), item
 assert ': UITableViewController' in source
-for forbidden in ['Preferences/', 'PSListController', 'PSSpecifier', 'ksSpecifiers',
+for forbidden in ['PSListController', 'PSSpecifier', 'ksSpecifiers',
                   'loadSpecifiers', 'setSpecifiers', 'reloadSpecifiers',
                   'readPreferenceValue:', 'setPreferenceValue:', 'pathForResource:']:
     assert forbidden not in source, forbidden
@@ -64,7 +64,7 @@ for statement in ['isKindOfClass:UISwitch.class', 'KSWrite(@"Enabled", @(request
                   '[self.tableView reloadData];', 'if (!saved)']:
     assert statement in toggle
 assert re.findall(r'KSWrite\(@"([^"]+)"', toggle) == ['Enabled']
-initializers = source.split('@implementation KSRootListController')[1].split('- (BOOL)enabledValue')[0]
+initializers = source.split('@implementation KSSettingsTableController')[1].split('- (BOOL)enabledValue')[0]
 assert 'KSWrite(' not in initializers  # opening/reopening never resets stored data
 assert '512 * 1024' in source and 'CGImageSourceGetCount(source) == 1' in source
 clear = source.split('- (void)clearSkin:')[1]
@@ -80,7 +80,7 @@ make = (root / 'Makefile').read_text()
 for line in ['BUNDLE_NAME = KeySkinPrefs', 'KeySkinPrefs_RESOURCE_FILES = Root.plist',
              'KeySkinPrefs_RESOURCE_DIRS = prefs/Resources', 'KeySkinPrefs_PRIVATE_FRAMEWORKS = Preferences']:
     assert line in make
-assert 'Version: 0.1.4\n' in (root / 'control').read_text()
+assert 'Version: 0.1.5\n' in (root / 'control').read_text()
 assert 'preferenceloader' in (root / 'control').read_text()
 config = plist('config.example.plist')
 assert config['Enabled'] is config['ProbeEnabled'] is False
@@ -95,4 +95,19 @@ for forbidden in ['keyWindow', 'NSURLSession', 'addTarget:', 'sendActionsForCont
     assert forbidden not in tweak
 assert '[self.tableView reloadData];' in clear
 assert "0.1.1" not in (root / "Root.plist").read_text()
-print('PASS: fixed UIKit five-row mapping/actions, strict Enabled default/storage, retained 0.1.4 resources and hook guards (static only; not device validation)')
+print('PASS: fixed UIKit five-row mapping/actions, strict Enabled default/storage, retained 0.1.5 resources and hook guards (static only; not device validation)')
+
+# Real entry uses the PSViewController contract, not a UITableViewController entry.
+assert '@interface KSRootListController : PSViewController' in source
+assert '@interface KSSettingsTableController : UITableViewController' in source
+entry_source = source.split('@implementation KSRootListController')[1].split('@end')[0]
+for forbidden in ['initWith', 'specifier', 'tableView', 'forwardInvocation', 'respondsToSelector', 'KSWrite(']:
+    assert forbidden not in entry_source, forbidden
+for required in ['[super viewDidLoad]', 'addChildViewController:content', 'addSubview:content.view', 'didMoveToParentViewController:self', 'safeAreaLayoutGuide']:
+    assert required in entry_source, required
+assert entry_source.index('addChildViewController:') < entry_source.index('addSubview:') < entry_source.index('didMoveToParentViewController:')
+assert 'PSViewController : UIViewController' in (root/'compat/Preferences/PSViewController.h').read_text()
+assert 'PSListController : PSViewController' in (root/'compat/Preferences/PSListController.h').read_text()
+assert 'PSViewController' in (root/'compat/Preferences.framework/Preferences.tbd').read_text()
+assert not subprocess.check_output(['git','diff','905808b','--','Tweak.xm','KSRuntime.h'])
+print('PASS: PS entry inheritance/containment, independent five-row content, no specifier cache, unchanged production runtime (static only)')

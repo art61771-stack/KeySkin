@@ -1,5 +1,6 @@
 // Simulator-only harness: compile the production controller, not a mock table.
 #import <UIKit/UIKit.h>
+#define KS_CONTENT_UIKIT_TEST 1
 #import "../PrefsController.m"
 #include <cstdlib>
 
@@ -12,13 +13,13 @@ static void Pump(void) {
         [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
 }
 // Suppress informational alerts only. Navigation and sharing use real UIKit.
-@interface KSTestController : KSRootListController
+@interface KSTestController : KSSettingsTableController
 @property(nonatomic, copy) NSString *lastMessage;
 @end
 @implementation KSTestController
 - (void)showMessage:(NSString *)message { self.lastMessage = message; }
 @end
-static void Five(KSRootListController *controller) {
+static void Five(KSSettingsTableController *controller) {
     [controller.tableView layoutIfNeeded];
     Require([controller.tableView numberOfSections] == 1, @"one section");
     Require([controller.tableView numberOfRowsInSection:0] == 5, @"five visible data-source rows");
@@ -29,11 +30,11 @@ static void Five(KSRootListController *controller) {
         Require(row == 0 ? [cell.accessoryView isKindOfClass:UISwitch.class] : cell.accessoryView == nil, @"switch only in row zero");
     }
 }
-static void Select(KSRootListController *controller, NSInteger row) {
+static void Select(KSSettingsTableController *controller, NSInteger row) {
     [controller tableView:controller.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]];
     Pump(); Five(controller);
 }
-static void Toggle(KSRootListController *controller, BOOL enabled) {
+static void Toggle(KSSettingsTableController *controller, BOOL enabled) {
     UITableViewCell *cell = [controller tableView:controller.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
     UISwitch *toggle = (UISwitch *)cell.accessoryView;
     toggle.on = enabled;
@@ -51,7 +52,20 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
     (void)app; (void)options;
     self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
     KSTestController *controller = [KSTestController new];
-    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:controller];
+    // Public UIKit containment test only: does not simulate PSViewController.
+    UIViewController *container = [UIViewController new];
+    [container addChildViewController:controller];
+    controller.view.translatesAutoresizingMaskIntoConstraints = NO;
+    [container.view addSubview:controller.view];
+    UILayoutGuide *safe = container.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [controller.view.topAnchor constraintEqualToAnchor:safe.topAnchor],
+        [controller.view.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor],
+        [controller.view.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
+        [controller.view.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor]
+    ]];
+    [controller didMoveToParentViewController:container];
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:container];
     self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
     self.controller = controller;
@@ -84,17 +98,17 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
             NSData *normal = KSRead(@"NormalImageData"), *function = KSRead(@"FunctionImageData");
             Toggle(controller, YES); Toggle(controller, NO); Toggle(controller, YES);
             Require([KSRead(@"NormalImageData") isEqual:normal] && [KSRead(@"FunctionImageData") isEqual:function], @"toggle preserves images");
-            NSArray *instances = @[[KSRootListController new], [[KSRootListController alloc] initWithStyle:UITableViewStyleGrouped], [[KSRootListController alloc] initWithNibName:nil bundle:nil]];
-            for (KSRootListController *other in instances) { [other loadViewIfNeeded]; Five(other); Require([other enabledValue], @"reinit preserves Enabled"); }
+            NSArray *instances = @[[KSSettingsTableController new], [[KSSettingsTableController alloc] initWithStyle:UITableViewStyleGrouped], [[KSSettingsTableController alloc] initWithNibName:nil bundle:nil]];
+            for (KSSettingsTableController *other in instances) { [other loadViewIfNeeded]; Five(other); Require([other enabledValue], @"reinit preserves Enabled"); }
             Require([KSRead(@"NormalImageData") isEqual:normal] && [KSRead(@"FunctionImageData") isEqual:function], @"reinit preserves images");
             for (NSInteger cycle = 0; cycle < 3; cycle++) {
                 Select(controller, 2);
-                Require(nav.topViewController != controller, @"preview pushed");
+                Require(nav.topViewController != controller.parentViewController, @"preview pushed");
                 NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10];
                 while (nav.transitionCoordinator && deadline.timeIntervalSinceNow > 0) Pump();
                 Require(nav.transitionCoordinator == nil, @"preview transition completed");
                 [nav popViewControllerAnimated:NO]; Pump(); Five(controller);
-                Require(nav.topViewController == controller && controller.view.window != nil, @"preview popped to visible settings");
+                Require(nav.topViewController == controller.parentViewController && controller.view.window != nil, @"preview popped to visible settings");
                 Select(controller, 3);
                 Require([controller.presentedViewController isKindOfClass:UIActivityViewController.class], @"real share presented");
                 [controller dismissViewControllerAnimated:NO completion:nil]; Pump();
@@ -103,7 +117,7 @@ static void Toggle(KSRootListController *controller, BOOL enabled) {
             Select(controller, 4);
             Require(!KSRead(@"NormalImageData") && !KSRead(@"FunctionImageData"), @"clear removed images");
             Require([KSRead(@"Enabled") isEqual:@NO] && [KSRead(@"ProbeEnabled") isEqual:@NO], @"clear disabled flags");
-            Select(controller, 2); Require(nav.topViewController == controller, @"empty preview stays on list");
+            Select(controller, 2); Require(nav.topViewController == controller.parentViewController, @"empty preview stays on list");
             passed = YES;
         } @catch (NSException *error) { detail = error.reason; }
         @finally {

@@ -10,7 +10,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>KeySkin 0.1.4</string>
+			<string>KeySkin 0.1.5</string>
 			<key>footerText</key>
 			<string>设置加载修复版；图片背景实验仍未真机验收。Enabled 仅在宿主启动时读取，修改配置后需重启宿主。</string>
 		</dict>

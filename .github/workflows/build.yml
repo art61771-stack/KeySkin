@@ -10,25 +10,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: brew install dpkg
-      - name: Production preferences UIKit simulator test
+      - name: Production content UIKit test (iOS16 only)
         timeout-minutes: 12
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build
-          xcrun simctl list -j > build/simulators.json
-          python3 - <<'PY' > build/simulator-selection.txt
-          import json
-          data = json.load(open('build/simulators.json'))
-          runtimes = [r for r in data['runtimes'] if r.get('isAvailable') and '.iOS-' in r['identifier']]
-          runtime = sorted(runtimes, key=lambda r: tuple(map(int, r['version'].split('.'))))[-1]
-          devices = [d for d in data['devicetypes'] if d.get('productFamily') == 'iPhone' and d['identifier'] in {x['deviceTypeIdentifier'] for x in data['devices'].get(runtime['identifier'], [])}]
-          print(runtime['identifier'])
-          print(devices[0]['identifier'])
-          PY
+          # Inspect installed Xcodes/runtimes only. No large runtime download,
+          # and no simulator on iOS17/18/26 may be created or booted.
+          { xcodebuild -version; xcodebuild -showsdks; ls -d /Applications/Xcode*.app; } > build/xcode-inventory.txt
+          FOUND=0
+          for XCODE in "$(xcode-select -p)" /Applications/Xcode*.app/Contents/Developer; do
+            export DEVELOPER_DIR="$XCODE"
+            if ! xcrun simctl list -j > build/simulators.json; then continue; fi
+            python3 tests/select_ios16.py build/simulators.json build/simulator-selection.txt
+            if ! grep -q '^NOT RUN:' build/simulator-selection.txt; then FOUND=1; break; fi
+          done
+          if [[ "$FOUND" == 0 ]]; then
+            echo 'NOT RUN: iOS16 runtime unavailable' | tee build/prefs-uikit.log
+            echo '### NOT RUN: iOS16 runtime unavailable (not a test PASS)' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           RUNTIME=$(sed -n '1p' build/simulator-selection.txt)
           TYPE=$(sed -n '2p' build/simulator-selection.txt)
-          KS_SIMULATOR_UDID=$(xcrun simctl create KeySkin-014-CI "$TYPE" "$RUNTIME")
+          KS_SIMULATOR_UDID=$(xcrun simctl create KeySkin-015-CI "$TYPE" "$RUNTIME")
           export KS_SIMULATOR_UDID
           cleanup() { xcrun simctl shutdown "$KS_SIMULATOR_UDID" || true; xcrun simctl delete "$KS_SIMULATOR_UDID" || true; }
           trap cleanup EXIT
@@ -43,12 +48,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: KeySkin-0.1.4
+          name: KeySkin-0.1.5
           path: |
             build/*.deb
             build/SHA256SUMS
             build/offscreen.ppm
             build/prefs-uikit.log
             build/simulator-selection.txt
+            build/simulators.json
+            build/xcode-inventory.txt
             build.log
           if-no-files-found: error

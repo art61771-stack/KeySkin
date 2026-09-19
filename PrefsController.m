@@ -49,28 +49,57 @@ typedef NS_ENUM(NSInteger, KSSettingsRow) {
     KSSettingsRowCount
 };
 
-// Experimental PreferenceLoader entry: device validation is still required.
-@interface KSRootListController : UITableViewController
+// Production content is independent of the private Preferences table machinery.
+@interface KSSettingsTableController : UITableViewController
+@end
+
+#ifndef KS_CONTENT_UIKIT_TEST
+#import <Preferences/PSViewController.h>
+// Theos PSViewController inherits UIViewController and owns the complete
+// Preferences entry contract (specifier/parent/root setters and initializers).
+// Do not redeclare its storage or intercept unknown selectors.
+@interface KSRootListController : PSViewController
 @end
 @implementation KSRootListController
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"KeySkin 0.1.5";
+    self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    KSSettingsTableController *content = [KSSettingsTableController new];
+    [self addChildViewController:content];
+    content.view.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:content.view];
+    UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [content.view.topAnchor constraintEqualToAnchor:safe.topAnchor],
+        [content.view.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor],
+        [content.view.leadingAnchor constraintEqualToAnchor:safe.leadingAnchor],
+        [content.view.trailingAnchor constraintEqualToAnchor:safe.trailingAnchor]
+    ]];
+    [content didMoveToParentViewController:self];
+}
+@end
+#endif
+
+@implementation KSSettingsTableController
 - (instancetype)init {
     return [self initWithStyle:UITableViewStyleInsetGrouped];
 }
 - (instancetype)initWithStyle:(UITableViewStyle)style {
     self = [super initWithStyle:style];
-    if (self) self.title = @"KeySkin 0.1.4";
+    if (self) self.title = @"KeySkin 0.1.5";
     return self;
 }
 - (instancetype)initWithNibName:(NSString *)name bundle:(NSBundle *)bundle {
     // No nib or plist is needed, regardless of the loader's entry path.
     (void)name; (void)bundle;
     self = [super initWithNibName:nil bundle:nil];
-    if (self) self.title = @"KeySkin 0.1.4";
+    if (self) self.title = @"KeySkin 0.1.5";
     return self;
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"KeySkin 0.1.4";
+    self.title = @"KeySkin 0.1.5";
 }
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
@@ -204,7 +233,7 @@ typedef NS_ENUM(NSInteger, KSSettingsRow) {
     }
     UIImage *sample = KSSavedImage(@"NormalImageData");
     CGImageRef result = sample ? KSCreateKeyImage(sample.CGImage, CGSizeMake(44,54),7,2) : NULL;
-    NSDictionary *report = @{@"version": @"0.1.4", @"os": UIDevice.currentDevice.systemVersion,
+    NSDictionary *report = @{@"version": @"0.1.5", @"os": UIDevice.currentDevice.systemVersion,
         @"scope": @"Settings process only; not keyboard host validation",
         @"configuredEnabled": KSRead(@"Enabled") ?: @NO, @"targetABIProven": @NO,
         @"reason": @"Experimental UIKBKeyView images; Settings cannot verify host hooks or appearance",

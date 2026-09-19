@@ -4,5 +4,5 @@ targets: [ arm64e-ios ]
 install-name: '/System/Library/PrivateFrameworks/Preferences.framework/Preferences'
 exports:
   - targets: [ arm64e-ios ]
-    objc-classes: [ PSListController, PSSpecifier ]
+    objc-classes: [ PSViewController, PSListController, PSSpecifier ]
 ...
